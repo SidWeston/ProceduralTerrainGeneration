@@ -10,6 +10,7 @@ public static class Noise
     {
         float[,] noiseMap = new float[mapWidth, mapHeight];
 
+        //get random number generator from seed
         System.Random prng = new System.Random(seed);
         Vector2[] octaveOffsets = new Vector2[octaves];
 
@@ -17,6 +18,7 @@ public static class Noise
         float amplitude = 1;
         float frequency = 1;
 
+        //generate random offsets based on the seed
         for (int i = 0; i < octaves; i++)
         {
             float offsetX = prng.Next(-100000, 100000) + offset.x;
@@ -27,6 +29,7 @@ public static class Noise
             amplitude *= persistance;
         }
 
+        //cant divide by 0 so set scale to very small if scale is 0
         if (scale <= 0)
         {
             scale = 0.0001f;
@@ -50,8 +53,7 @@ public static class Noise
 
                 for (int i = 0; i < octaves; i++)
                 {
-
-
+                    //apply offset to specific coordinates
                     float sampleX = (x - halfWidth + octaveOffsets[i].x) / scale * frequency;
                     float sampleY = (y - halfHeight + octaveOffsets[i].y) / scale * frequency;
 
@@ -62,6 +64,7 @@ public static class Noise
                     frequency *= lacunarity;
                 }
 
+                //clamp the noise heights
                 if (noiseHeight > maxLocalNoiseHeight)
                 {
                     maxLocalNoiseHeight = noiseHeight;
@@ -74,6 +77,7 @@ public static class Noise
             }
         }
 
+        //loop through and set the values of the array based on the noise values
         for (int y = 0; y < mapHeight; y++)
         {
             for (int x = 0; x < mapWidth; x++)

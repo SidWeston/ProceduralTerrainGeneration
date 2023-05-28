@@ -24,19 +24,24 @@ public class EndlessTerrain : MonoBehaviour
 
     void Start()
     {
+        //get map gen object
         mapGenerator = FindObjectOfType<MapGenerator>();
 
+        //get the view distance of the lowest detailed lodmesh (furthest away) to find the max view distance
         maxViewDst = detailLevels[detailLevels.Length - 1].visibleDstThreshold;
         chunkSize = mapGenerator.mapChunkSize - 1;
         chunksVisibleInViewDst = Mathf.RoundToInt(maxViewDst / chunkSize);
 
+        //update visible chunks on initial start
         UpdateVisibleChunks();
     }
 
     void Update()
     {
+        //set viewer position in relation to the map scale
         viewerPosition = new Vector2(viewer.position.x, viewer.position.z) / mapGenerator.terrainData.uniformScale;
 
+        //if the viewer has moved update the chunks
         if ((viewerPositionOld - viewerPosition).sqrMagnitude > sqrViewerMoveThresholdForChunkUpdate)
         {
             viewerPositionOld = viewerPosition;
@@ -46,16 +51,18 @@ public class EndlessTerrain : MonoBehaviour
 
     void UpdateVisibleChunks()
     {
-
+        //loop through all the chunks and set them invisible
         for (int i = 0; i < terrainChunksVisibleLastUpdate.Count; i++)
         {
             terrainChunksVisibleLastUpdate[i].SetVisible(false);
         }
         terrainChunksVisibleLastUpdate.Clear();
 
+        //get the coords of the current chunk the viewer is in
         int currentChunkCoordX = Mathf.RoundToInt(viewerPosition.x / chunkSize);
         int currentChunkCoordY = Mathf.RoundToInt(viewerPosition.y / chunkSize);
 
+        //loop through all chunks in the view distance and update them
         for (int yOffset = -chunksVisibleInViewDst; yOffset <= chunksVisibleInViewDst; yOffset++)
         {
             for (int xOffset = -chunksVisibleInViewDst; xOffset <= chunksVisibleInViewDst; xOffset++)
@@ -68,6 +75,7 @@ public class EndlessTerrain : MonoBehaviour
                 }
                 else
                 {
+                    //if the chunk doesnt exist and should be visible, create it
                     terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, detailLevels, transform, mapMaterial));
                 }
 
@@ -77,7 +85,6 @@ public class EndlessTerrain : MonoBehaviour
 
     public class TerrainChunk
     {
-
         GameObject meshObject;
         Vector2 position;
         Bounds bounds;
@@ -102,12 +109,14 @@ public class EndlessTerrain : MonoBehaviour
             bounds = new Bounds(position, Vector2.one * size);
             Vector3 positionV3 = new Vector3(position.x, 0, position.y);
 
+            //add all mesh components for a game object in unity
             meshObject = new GameObject("Terrain Chunk");
             meshRenderer = meshObject.AddComponent<MeshRenderer>();
             meshFilter = meshObject.AddComponent<MeshFilter>();
             meshCollider = meshObject.AddComponent<MeshCollider>();
             meshRenderer.material = material;
 
+            //set scale based on the map scale
             meshObject.transform.position = positionV3 * mapGenerator.terrainData.uniformScale;
             meshObject.transform.parent = parent;
             meshObject.transform.localScale = Vector3.one * mapGenerator.terrainData.uniformScale;
@@ -116,38 +125,44 @@ public class EndlessTerrain : MonoBehaviour
             lodMeshes = new LODMesh[detailLevels.Length];
             for (int i = 0; i < detailLevels.Length; i++)
             {
+                //find what lod mesh should be used for the collider and set that as the collision mesh
+                //lower lod mesh will still be effective for collision but more efficient 
                 lodMeshes[i] = new LODMesh(detailLevels[i].lod, UpdateTerrainChunk);
                 if (detailLevels[i].useForCollider)
                 {
                     collisionLODMesh = lodMeshes[i];
                 }
             }
-
+            //request map data
             mapGenerator.RequestMapData(position, OnMapDataReceived);
         }
 
         void OnMapDataReceived(MapData mapData)
         {
+            //when recieved...
             this.mapData = mapData;
             mapDataReceived = true;
-
+            //...update the terrain chunk
             UpdateTerrainChunk();
         }
 
         public void UpdateTerrainChunk()
         {
-            if (mapDataReceived)
+            if(mapDataReceived)
             {
+                //get the distance from the viewer
                 float viewerDstFromNearestEdge = Mathf.Sqrt(bounds.SqrDistance(viewerPosition));
+                //check if the distance from the viewer is close enough to be visible
                 bool visible = viewerDstFromNearestEdge <= maxViewDst;
 
-                if (visible)
+                if(visible)
                 {
                     int lodIndex = 0;
 
-                    for (int i = 0; i < detailLevels.Length - 1; i++)
-                    {
-                        if (viewerDstFromNearestEdge > detailLevels[i].visibleDstThreshold)
+                    //check what lod mesh should be rendered.
+                    for(int i = 0; i < detailLevels.Length - 1; i++)
+                    { 
+                        if(viewerDstFromNearestEdge > detailLevels[i].visibleDstThreshold)
                         {
                             lodIndex = i + 1;
                         }
@@ -157,27 +172,30 @@ public class EndlessTerrain : MonoBehaviour
                         }
                     }
 
-                    if (lodIndex != previousLODIndex)
+                    //if the level of detail index has changed
+                    if(lodIndex != previousLODIndex)
                     {
+                        //check if the mesh for that lodindex needs to be requested
                         LODMesh lodMesh = lodMeshes[lodIndex];
-                        if (lodMesh.hasMesh)
+                        if(lodMesh.hasMesh)
                         {
                             previousLODIndex = lodIndex;
                             meshFilter.mesh = lodMesh.mesh;
                         }
-                        else if (!lodMesh.hasRequestedMesh)
+                        else if(!lodMesh.hasRequestedMesh)
                         {
+                            //get the mesh for the relevant lod index
                             lodMesh.RequestMesh(mapData);
                         }
                     }
 
-                    if (lodIndex == 0)
+                    if(lodIndex == 0)
                     {
-                        if (collisionLODMesh.hasMesh)
+                        if(collisionLODMesh.hasMesh)
                         {
                             meshCollider.sharedMesh = collisionLODMesh.mesh;
                         }
-                        else if (!collisionLODMesh.hasRequestedMesh)
+                        else if(!collisionLODMesh.hasRequestedMesh)
                         {
                             collisionLODMesh.RequestMesh(mapData);
                         }
