@@ -20,6 +20,7 @@ public class MapGenerator : MonoBehaviour
     public int editorPreviewLOD;
 
     public bool autoUpdate;
+    private bool useRandomFalloffOffset = false;
 
     float[,] falloffMap;
 
@@ -30,7 +31,7 @@ public class MapGenerator : MonoBehaviour
     {
         textureData.UpdateMeshHeights(terrainMaterial, terrainData.minHeight, terrainData.maxHeight);
     }
-
+ 
     void OnValuesUpdated()
     {
         if (!Application.isPlaying)
